@@ -1,0 +1,54 @@
+{
+  "name": "entropy",
+  "version": "0.0.0",
+  "description": "Entropy Production",
+  "homepage": "https://mintopia.net",
+  "author": {
+    "name": "Jessica Smith",
+    "email": "jess@mintopia.net",
+    "url": "https://mintopia.net"
+  },
+  "files": [
+    "dashboard",
+    "graphics",
+    "extension.js",
+    "extension"
+  ],
+  "keywords": [
+    "",
+    "nodecg-bundle"
+  ],
+  "nodecg": {
+    "compatibleRange": "^2.0.0",
+    "dashboardPanels": [
+      {
+        "name": "lowerthird",
+        "title": "Lower Thirds",
+        "width": 2,
+        "file": "lowerthird.html",
+        "headerColor": "#00ada1"
+      }
+    ],
+    "graphics": [
+      {
+        "file": "lowerthird.html",
+        "width": 1920,
+        "height": 1080,
+        "singleInstance": false
+      }
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.5%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "license": "MIT"
+}
