@@ -24,9 +24,25 @@
       {
         "name": "lowerthird",
         "title": "Lower Thirds",
-        "width": 2,
+        "width": 5,
         "file": "lowerthird.html",
         "headerColor": "#00ada1"
+      },
+      {
+        "name": "videoplayer",
+        "title": "Controls",
+        "width": 3,
+        "file": "videoplayer.html",
+        "headerColor": "#00ada1",
+        "workspace": "video"
+      },
+      {
+        "name": "settings",
+        "title": "Settings",
+        "width": 3,
+        "file": "settings.html",
+        "headerColor": "#00ada1",
+        "workspace": "Settings"
       }
     ],
     "graphics": [
@@ -50,5 +66,10 @@
       "last 1 safari version"
     ]
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "bower-npm-resolver": "^0.11.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "nodecg-utility-obs": "^6.1.7"
+  }
 }
