@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "required": [
+    "videoplayer"
+  ],
+  "properties": {
+    "videoplayer": {
+      "type": "object",
+      "default": {},
+      "title": "The videoplayer Schema",
+      "required": [
+        "localPath",
+        "remotePath",
+        "sourceName"
+      ],
+      "properties": {
+        "localPath": {
+          "type": "string",
+          "default": "",
+          "title": "Local path containing videos (NodeCG)"
+        },
+        "remotePath": {
+          "type": "string",
+          "default": "",
+          "title": "Remote path containing videos (OBS)"
+        },
+        "sourceName": {
+          "type": "string",
+          "default": "",
+          "title": "OBS Source for the Video Player"
+        }
+      }
+    }
+  }
+}

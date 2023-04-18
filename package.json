@@ -37,6 +37,14 @@
         "workspace": "video"
       },
       {
+        "name": "videos",
+        "title": "Videos",
+        "width": 3,
+        "file": "videos.html",
+        "headerColor": "#00ada1",
+        "workspace": "video"
+      },
+      {
         "name": "settings",
         "title": "Settings",
         "width": 3,

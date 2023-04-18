@@ -35,129 +35,143 @@ document.addEventListener("DOMContentLoaded", () => {
     const filenameText = document.getElementById("filename");
     const playpauseIcon = document.getElementById("playpauseicon");
 
+    const replicant = nodecg.Replicant('videoplayer');
+
     let stateUpdatedAt = null;
-    let latestState = null;
+    let status = null;
+    let playlists = [];
+    let videos = [];
+    let currentVideo = null;
+    let currentPlaylist = null;
 
     // Attach an event listener to the button
-    playpauseButton.addEventListener("click", function() {
+    playpauseButton.addEventListener("click", () => {
         // Do something when the button is clicked
         nodecg.sendMessage('videoplayer.playpause');
     });
 
     // Attach an event listener to the button
-    stopButton.addEventListener("click", function() {
+    stopButton.addEventListener("click", () => {
         nodecg.sendMessage('videoplayer.stop');
     });
 
     // Attach an event listener to the button
-    nextButton.addEventListener("click", function() {
+    nextButton.addEventListener("click", () => {
         nodecg.sendMessage('videoplayer.next');
     });
 
     // Attach an event listener to the button
-    previousButton.addEventListener("click", function() {
+    previousButton.addEventListener("click", () => {
         nodecg.sendMessage('videoplayer.previous');
     });
 
-    setInterval(() => {
-        if (latestState === null || stateUpdatedAt === null || latestState.video === null) {
+    replicant.on('change', (newValue, oldValue) => {
+        status = newValue.status;
+        videos = newValue.videos;
+        playlists = newValue.playlists;
+        updateControls();
+        updateTimer();
+    });
+
+    const clearPlayer = () => {
+        previousButton.disabled = true;
+        nextButton.disabled = true;
+        playpauseButton.disabled = true;
+        stopButton.disabled = true;
+
+        filenameText.innerHTML = 'Nothing Playing';
+        positionText.innerHTML = '--:--';
+        lengthText.innerHTML = '--:--';
+        progressbar.style.width = 0;
+        playbackIcon.classList.add('text-muted');
+        playbackIcon.classList.remove('text-success', 'text-danger');
+        filenameText.classList.add('text-muted');
+    }
+
+    const updateControls = () => {
+        if (status === null || status.video === null) {
+            clearPlayer();
             return;
         }
 
-        let currentPosition = latestState.currentPosition;
-        if (latestState.status === 'playing') {
-            const now = new Date();
-            const diff = (now.getTime() - stateUpdatedAt.getTime()) / 1000;
-            currentPosition += diff;
+        currentVideo = videos.find((v) => {
+            return v.filename === status.video;
+        });
+        if (!currentVideo) {
+            clearPlayer();
+            return;
         }
 
-        const length = Math.ceil(latestState.video.length);
+        filenameText.innerHTML = currentVideo.filename;
+        playbackIcon.classList.remove('text-muted');
+        filenameText.classList.remove('text-muted');
+        playpauseButton.disabled = false;
+        stopButton.disabled = false;
+
+        currentPlaylist = playlists.find((p) => {
+            return p.name === status.playlist;
+        });
+        if (currentPlaylist) {
+            previousButton.disabled = status.playlistPosition <= 1;
+            nextButton.disabled = status.playlistPosition >= playlist.videos.length;
+        }
+
+        switch (status.state) {
+            case 'playing':
+                playpauseButton.classList.add('btn-warning');
+                playpauseButton.classList.remove('btn-success');
+                playpauseIcon.classList.add('fa-pause');
+                playpauseIcon.classList.remove('fa-play');
+                playbackIcon.classList.add('fa-play-circle', 'text-success');
+                playbackIcon.classList.remove('fa-pause-circle', 'fa-stop-circle', 'text-danger', 'text-warning');
+                break;
+            case 'paused':
+                playpauseButton.classList.add('btn-success');
+                playpauseButton.classList.remove('btn-warning');
+                playpauseIcon.classList.add('fa-play');
+                playpauseIcon.classList.remove('fa-pause');
+                playbackIcon.classList.add('fa-pause-circle', 'text-warning');
+                playbackIcon.classList.remove('fa-play-circle', 'fa-stop-circle', 'text-danger', 'text-success');
+                break;
+            case 'stopped':
+                playpauseButton.classList.add('btn-success');
+                playpauseButton.classList.remove('btn-warning');
+                playpauseIcon.classList.add('fa-play');
+                playpauseIcon.classList.remove('fa-pause');
+                playbackIcon.classList.add('fa-stop-circle', 'text-danger');
+                playbackIcon.classList.remove('fa-play-circle', 'fa-pause-circle', 'text-warning', 'text-success');
+                break;
+        }
+    }
+
+    const updateTimer = () => {
+        if (!status || !currentVideo) {
+            positionText.innerHTML = '--:--';
+            lengthText.innerHTML = '--:--';
+            progressbar.style.width = 0;
+            return;
+        }
+        let currentPosition = status.currentPosition / 1000;
+        if (status.state === 'playing') {
+            const now = new Date();
+            const updatedAt = new Date(status.updatedAt);
+            const diff = (now.getTime() - updatedAt.getTime()) / 1000;
+            currentPosition += diff;
+        } else if (status.state === 'stopped') {
+            currentPosition = 0;
+        }
+
+        const length = Math.ceil(currentVideo.length);
         currentPosition = Math.floor(Math.min(currentPosition, length));
         const remaining = Math.max(0, length - currentPosition);
         positionText.innerHTML = formatTime(currentPosition);
-        lengthText.innerHTML = '-' + formatTime(remaining);
-        progressbar.style.width = '' + ((currentPosition / latestState.video.length) * 100) + '%';
-
-    }, 1000);
-
-    const updatePlayer = (playerState) => {
-        latestState = playerState;
-        stateUpdatedAt = new Date();
-
-        // Default state
-        if (playerState === null || playerState.video === null) {
-            previousButton.disabled = true;
-            nextButton.disabled = true;
-            playpauseButton.disabled = true;
-            stopButton.disabled = true;
-
-            positionText.innerHTML = '--:--';
-            lengthText.innerHTML = '--:--';
-            filenameText.innerHTML = 'Nothing Playing';
-            progressbar.style.width = 0;
-            playbackIcon.classList.add('text-muted');
-            playbackIcon.classList.remove('text-success', 'text-danger');
-            filenameText.classList.add('text-muted');
-
-            return;
+        let prefix = '-';
+        if (remaining === 0) {
+            prefix = '';
         }
+        lengthText.innerHTML = prefix + formatTime(remaining);
+        progressbar.style.width = '' + ((currentPosition / currentVideo.length) * 100) + '%';
+    }
 
-        // If we have a current video, update relevant state
-        if (playerState.video !== null) {
-            filenameText.innerHTML = playerState.video.filename;
-            playbackIcon.classList.remove('text-muted');
-            filenameText.classList.remove('text-muted');
-            playpauseButton.setAttribute('disabled', false);
-            positionText.innerHTML = formatTime(playerState.currentPosition);
-        }
-
-        // Next/Previous based on playlist
-        if (playerState.playlistPosition > 0) {
-            previousButton.disabled = false;
-        } else {
-            previousButton.disabled = true;
-        }
-        if ((playerState.playlistPosition + 1) < playerState.playlist.length) {
-            nextButton.disabled = false;
-        } else {
-            nextButton.disabled = true;
-        }
-
-        // Playback state
-        if (playerState.status === 'playing') {
-            stopButton.disabled = false;
-            playpauseButton.classList.add('btn-warning');
-            playpauseButton.classList.remove('btn-success');
-            playpauseIcon.classList.add('fa-pause');
-            playpauseIcon.classList.remove('fa-play');
-            playpauseButton.disabled = false;
-            playbackIcon.classList.add('fa-play-circle', 'text-success');
-            playbackIcon.classList.remove('fa-pause-circle', 'fa-stop-circle', 'text-danger', 'text-warning');
-
-        } else if (playerState.status === 'stopped') {
-            stopButton.disabled = true;
-            playpauseIcon.classList.add('fa-play');
-            playpauseIcon.classList.remove('fa-pause');
-            playpauseButton.classList.add('btn-success');
-            playpauseButton.classList.remove('btn-warning');
-            playbackIcon.classList.add('fa-stop-circle', 'text-danger');
-            playbackIcon.classList.remove('fa-pause-circle', 'fa-play-circle', 'text-success', 'text-warning');
-
-        } else if (playerState.status === 'paused') {
-            stopButton.disabled = false;
-            playpauseButton.disabled = false;
-            playpauseButton.classList.add('btn-success');
-            playpauseButton.classList.remove('btn-warning');
-            playpauseIcon.classList.add('fa-play');
-            playpauseIcon.classList.remove('fa-pause');
-            playbackIcon.classList.add('fa-pause-circle', 'text-warning');
-            playbackIcon.classList.remove('fa-play-circle', 'fa-stop-circle', 'text-danger', 'text-success');
-
-
-        }
-    };
-
-    nodecg.listenFor('videoplayer.state', (state) => {
-        updatePlayer(state);
-    });
+    setInterval(updateTimer, 1000);
 });

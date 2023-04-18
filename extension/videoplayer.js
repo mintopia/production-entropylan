@@ -3,19 +3,16 @@ const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
 
 class VideoPlayer extends EventEmitter {
-    constructor(nodecg, directory, obs, videoSource) {
+    constructor(nodecg, obs, replicant, settings) {
         super();
 
         this.nodecg = nodecg;
-        this.directory = directory;
         this.obs = obs;
-        this.videoSource = videoSource;
-        this.videos = [];
-        this.currentPlaylist = [];
-        this.currentPosition = 0;
+        this.replicant = replicant;
+        this.settings = settings;
 
         // Watch the directory for changes
-        fs.watch(this.directory, (eventType, filename) => {
+        fs.watch(this.settings.localPath, (eventType, filename) => {
             if (eventType === 'rename') {
                 // Directory has changed, refresh file list
                 this.refreshVideos();
@@ -35,38 +32,37 @@ class VideoPlayer extends EventEmitter {
         nodecg.listenFor('videoplayer.previous', () => {
             this.previous().catch((error) => {});
         });
+        nodecg.listenFor('videoplayer.playVideo', (filename) => {
+            const video = this.getVideo(filename);
+            if (video) {
+                this.playVideo(video);
+            }
+        })
 
         // OBS Events
         this.obs.on('MediaStarted', (event) => {
-            if (event.sourceName !== this.videoSource) {
+            if (event.sourceName !== this.settings.sourceName) {
                 return;
             }
-            let video = null;
-            if (this.currentPosition < this.currentPlaylist.length) {
-                video = this.currentPlaylist[this.currentPosition];
-            }
-            this.emit('playing', video);
+            this.emit('playing', this.getCurrentVideo());
         });
 
         this.obs.on('MediaEnded', (event) => {
-            if (event.sourceName !== this.videoSource) {
+            if (event.sourceName !== this.settings.sourceName) {
                 return;
             }
-            this.currentPosition++;
-            if (this.currentPosition >= this.currentPlaylist.length) {
-                this.currentPosition = 0;
-                this.currentPlaylist = [];
-            }
-            this.updateState();
-            this.emit('stopped');
-        });
+            const playlist = this.getCurrentPlaylist();
+            if (playlist) {
+                // We are playing a playlist
 
-        this.obs.on('MediaStopped', (event) => {
-            if (event.sourceName !== this.videoSource) {
-                return;
+                // If at the end of the list - reset to the beginning
+                if (this.replicant.status.playlistPosition + 1 > playlist.videos.length) {
+                    this.replicant.status.playlistPosition = 1;
+                } else {
+                    this.replicant.status.playlistPosition++;
+                }
+                this.replicant.status.video = this.getVideo(playlist.videos[this.replicant.status.playlistPosition]);
             }
-            this.currentPosition = 0;
-            this.currentPlaylist = [];
             this.updateState();
             this.emit('stopped');
         });
@@ -77,46 +73,73 @@ class VideoPlayer extends EventEmitter {
 
         setInterval(() => {
             this.updateState();
-        }, 5000);
+        }, 10000);
+    }
+
+    getCurrentVideo() {
+        return this.getVideo(this.replicant.status.video);
+    }
+
+    getVideo(name) {
+        return this.replicant.videos.find((video) => {
+            return video.filename === name;
+        });
+    }
+
+    getCurrentPlaylist() {
+        return this.getPlaylist(this.replicant.status.playlist);
+    }
+
+    getPlaylist(name) {
+        return this.replicant.playlists.find((playlist) => {
+            return playlist.name === name;
+        });
     }
 
     async updateState() {
         try {
             const state = await this.obs.send('GetMediaState', {
-                sourceName: this.videoSource,
+                sourceName: this.settings.sourceName,
             });
-            const position = await this.obs.send('GetMediaTime', {
-                sourceName: this.videoSource,
+            const currentPosition = await this.obs.send('GetMediaTime', {
+                sourceName: this.settings.sourceName,
             });
-            this.nodecg.sendMessage('videoplayer.state', {
-                video: this.currentPlaylist[this.currentPosition] ?? null,
-                playlistPosition: this.currentPosition,
-                playlist: this.currentPlaylist,
-                status: state.mediaState,
-                currentPosition: position.timestamp / 1000,
-            });
+            if (state.mediaState === 'ended') {
+                this.replicant.status.state = 'stopped';
+            } else {
+                this.replicant.status.state = state.mediaState;
+            }
+            this.replicant.status.currentPosition = currentPosition.timestamp;
+            this.replicant.status.updatedAt = new Date();
+
         } catch (err) {
             console.error(err);
         }
     }
 
+    updatePlaylists()
+    {
+        // TODO: Iterate each playlist and remove any videos that have been removed
+    }
+
     async refreshVideos() {
         try {
-            const filenames = await fs.promises.readdir(this.directory);
+            const filenames = await fs.promises.readdir(this.settings.localPath);
 
-            const oldVideos = this.videos.slice();
+            const oldVideos = this.replicant.videos.slice();
             const newVideos = await Promise.all(filenames
-                .filter((filename) => /\.(mp4|mov|avi|wmv|flv|mkv)$/i.test(filename))
-                .map((filename) => new Video(`${this.directory}/${filename}`)));
+                .filter((filename) => /\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i.test(filename))
+                .map((filename) => new Video(this.settings.localPath, this.settings.remotePath, filename)));
 
             await Promise.all(newVideos.map(video => video.updateMetadata()));
 
-            this.videos = newVideos;
+            this.replicant.videos = newVideos;
 
-            if (this.videos.length !== oldVideos.length ||
-                JSON.stringify(this.videos) !== JSON.stringify(oldVideos)) {
+            if (newVideos.length !== oldVideos.length ||
+                JSON.stringify(newVideos.length) !== JSON.stringify(oldVideos)) {
                 // Emit 'change' event if file list has changed
-                this.emit('filesChanged', this.videos);
+                this.emit('filesChanged', newVideos);
+                this.updatePlaylists();
             }
             await this.updateState();
         } catch (err) {
@@ -124,23 +147,72 @@ class VideoPlayer extends EventEmitter {
         }
     }
 
-    async play(videos) {
+    async playVideo(video) {
         try {
-            this.currentPlaylist = videos;
-            this.currentPosition = 0;
             await this.obs.send('SetSourceSettings', {
-                sourceName: this.videoSource,
+                sourceName: this.settings.sourceName,
+                sourceSettings: {
+                    playlist: [{
+                        'hidden': false,
+                        'selected': false,
+                        'value': video.remotePath,
+                    }]
+                },
+            });
+
+            this.replicant.status = {
+                state: 'playing',
+                video: video.filename,
+                playlist: null,
+                currentPosition: 0,
+                playlistPosition: null,
+                updatedAt: new Date()
+            };
+
+            setTimeout(() => {
+                this.updateState();
+            }, 50);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async playPlaylist(playlist, position = 1) {
+        try {
+            let videos = [];
+            for (const name of playlist.videos) {
+                const video = this.getVideo(name);
+                if (video) {
+                    videos.push(video);
+                }
+            }
+
+            await this.obs.send('SetSourceSettings', {
+                sourceName: this.settings.sourceName,
                 sourceSettings: {
                     playlist: videos.map((video) => {
                         return {
                             'hidden': false,
-                            'selected': false,
-                            'value': video.path,
+                            'selected': video === playlist.videos[position - 1],
+                            'value': video.remotePath,
                         }
                     }),
                 },
             });
-            await this.updateState();
+
+
+            this.replicant.status = {
+                state: 'playing',
+                video: playlist.videos[position - 1],
+                playlist: playlist,
+                currentPosition: 0,
+                playlistPosition: position,
+                updatedAt: new Date()
+            };
+
+            setTimeout(() => {
+                this.updateState();
+            }, 50);
         } catch (err) {
             console.error(err);
         }
@@ -148,10 +220,18 @@ class VideoPlayer extends EventEmitter {
 
     async playpause() {
         try {
-            await this.obs.send('PlayPauseMedia', {
-                sourceName: this.videoSource,
+            // Get current status
+            const status = await this.obs.send('GetMediaState', {
+                sourceName: this.settings.sourceName,
             });
-            await this.updateState();
+            if (status === 'stopped') {
+                await this.play();
+            } else {
+                await this.obs.send('PlayPauseMedia', {
+                    sourceName: this.settings.sourceName,
+                });
+                await this.updateState();
+            }
         } catch (err) {
             console.error(err);
         }
@@ -160,31 +240,7 @@ class VideoPlayer extends EventEmitter {
     async stop() {
         try {
             await this.obs.send('StopMedia', {
-                sourceName: this.videoSource,
-            });
-            await this.updateState();
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
-    async pause() {
-        try {
-            await this.obs.send('PlayPauseMedia', {
-                sourceName: this.videoSource,
-                playPause: true,
-            });
-            await this.updateState();
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
-    async resume() {
-        try {
-            await this.obs.send('PlayPauseMedia', {
-                sourceName: this.videoSource,
-                playPause: false,
+                sourceName: this.settings.sourceName,
             });
             await this.updateState();
         } catch (err) {
@@ -194,13 +250,19 @@ class VideoPlayer extends EventEmitter {
 
     async next() {
         try {
-            if ((this.currentPosition + 1) > this.currentPlaylist.length) {
+            const playlist = this.getCurrentPlaylist();
+            if (playlist === null) {
+                return;
+            }
+
+            if (this.replicant.status.playlistPosition >= playlist.videos.length) {
                 return;
             }
             await this.obs.send('NextMedia', {
-                sourceName: this.videoSource,
+                sourceName: this.settings.sourceName,
             });
-            this.currentPosition++;
+            this.replicant.status.currentPosition++;
+            this.replicant.status.video = this.getVideo(playlist.videos[this.replicant.status.currentPosition - 1]);
             await this.updateState();
         } catch (err) {
             console.error(err);
@@ -209,36 +271,19 @@ class VideoPlayer extends EventEmitter {
 
     async previous() {
         try {
-            if (this.currentPosition === 0) {
+            if (this.getCurrentPlaylist() === null) {
                 return;
             }
+
+            if (this.replicant.status.playlistPosition === 1) {
+                return;
+            }
+
             await this.obs.send('PreviousMedia', {
-                sourceName: this.videoSource,
+                sourceName: this.settings.sourceName,
             });
-            this.currentPosition--;
-            await this.updateState();
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
-    async restart() {
-        try {
-            await this.obs.send('RestartMedia', {
-                sourceName: this.videoSource,
-            });
-            await this.updateState();
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
-    async scrubTo(time) {
-        try {
-            await this.obs.send('SetMediaTime', {
-                sourceName: this.videoSource,
-                timestamp: time,
-            });
+            this.replicant.status.playlistPosition--;
+            this.replicant.status.video = this.getVideo(playlist.videos[this.replicant.status.currentPosition - 1]);
             await this.updateState();
         } catch (err) {
             console.error(err);
@@ -247,9 +292,10 @@ class VideoPlayer extends EventEmitter {
 }
 
 class Video {
-    constructor(path) {
-        this.path = path;
-        this.filename = path.split('/').pop();
+    constructor(localPath, remotePath, filename) {
+        this.localPath = `${localPath}/${filename}`;
+        this.remotePath = `${localPath}/${filename}`
+        this.filename = filename;
         this.length = 0;
         this.filesize = 0;
         this.width = 0;
@@ -259,7 +305,7 @@ class Video {
     async updateMetadata() {
         // Check if file is a video file using ffmpeg
         return new Promise((resolve, reject) => {
-            ffmpeg.ffprobe(this.path, (err, metadata) => {
+            ffmpeg.ffprobe(this.localPath, (err, metadata) => {
                 if (err) {
                     // Not a video file
                     resolve(false);
@@ -267,7 +313,7 @@ class Video {
                 }
 
                 this.length = metadata.format.duration;
-                this.filesize = fs.statSync(this.path).size;
+                this.filesize = fs.statSync(this.localPath).size;
                 const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
                 if (videoStream) {
                     this.width = videoStream.width;
@@ -276,6 +322,13 @@ class Video {
                 resolve(true);
             });
         });
+    }
+}
+
+class Playlist {
+    constructor(name, videos) {
+        this.name = name;
+        this.videos = videos;
     }
 }
 

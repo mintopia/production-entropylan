@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "required": [
+    "videos",
+    "playlists",
+    "status"
+  ],
+  "properties": {
+    "videos": {
+      "type": "array",
+      "default": [],
+      "title": "Videos",
+      "items": {
+        "type": "object",
+        "title": "Video",
+        "required": [
+          "localPath",
+          "remotePath",
+          "filename",
+          "length",
+          "filesize",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "localPath": {
+            "type": "string",
+            "title": "Path to video on NodeCG"
+          },
+          "remotePath": {
+            "type": "string",
+            "title": "Path to video on OBS"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "length": {
+            "type": "number",
+            "title": "Length in seconds"
+          },
+          "filesize": {
+            "type": "integer",
+            "title": "Filesize in bytes"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width in pixels"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height in pixels"
+          }
+        }
+      }
+    },
+    "playlists": {
+      "type": "array",
+      "default": [],
+      "title": "Playlists",
+      "items": {
+        "type": "object",
+        "default": {},
+        "title": "Playlist",
+        "required": [
+          "name",
+          "videos"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "default": "",
+            "title": "Name"
+          },
+          "videos": {
+            "type": "array",
+            "default": [],
+            "title": "Videos",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "default": {
+        "state": "stopped",
+        "video": null,
+        "playlist": null,
+        "currentPosition": 0,
+        "playlistPosition": 0,
+        "updatedAt": null
+      },
+      "title": "Playback Status",
+      "required": [
+        "state",
+        "video",
+        "playlist",
+        "currentPosition",
+        "playlistPosition",
+        "updatedAt"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "default": "stopped",
+          "title": "Current State"
+        },
+        "video": {
+          "type": ["null", "string"],
+          "default": null,
+          "title": "The current video"
+        },
+        "playlist": {
+          "type": ["null", "string"],
+          "default": null,
+          "title": "The current playlist"
+        },
+        "currentPosition": {
+          "type": "integer",
+          "default": 0,
+          "title": "The current position in seconds"
+        },
+        "playlistPosition": {
+          "type": ["null", "integer"],
+          "default": null,
+          "title": "The position in the playlist"
+        },
+        "updatedAt": {
+          "type": ["null", "object"],
+          "default": null,
+          "title": "The last update time"
+        }
+      }
+    }
+  }
+}
