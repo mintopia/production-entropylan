@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "required": [
+    "visible",
+    "number",
+    "single",
+    "plural"
+  ],
+  "properties": {
+    "visible": {
+      "type": "boolean",
+      "default": false
+    },
+    "number": {
+      "type": "integer",
+      "default": 0
+    },
+    "single": {
+      "type": "string",
+      "default": ""
+    },
+    "plural": {
+      "type": "string",
+      "default": ""
+    }
+  }
+}

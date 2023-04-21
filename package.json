@@ -22,10 +22,10 @@
     "compatibleRange": "^2.0.0",
     "dashboardPanels": [
       {
-        "name": "lowerthird",
-        "title": "Lower Thirds",
-        "width": 5,
-        "file": "lowerthird.html",
+        "name": "counter",
+        "title": "Counter",
+        "width": 2,
+        "file": "counter.html",
         "headerColor": "#00ada1"
       },
       {
@@ -55,7 +55,7 @@
     ],
     "graphics": [
       {
-        "file": "lowerthird.html",
+        "file": "counter.html",
         "width": 1920,
         "height": 1080,
         "singleInstance": false
