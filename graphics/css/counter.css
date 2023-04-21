@@ -25,7 +25,13 @@ body, html {
     color: white;
     width: 200px;
     height: 40px;
-    text-outline: 1px #000000;
+    text-shadow:
+        0 0 1px black,
+        -1px -1px 1px black,
+        -1px 1px 1px black,
+        1px -1px 1px black,
+        1px 1px 1px black;
+
     transition:
             opacity 0.5s ease-in-out,
             width 1s ease-in-out;
@@ -39,15 +45,15 @@ body, html {
     overflow: hidden;
     font-size: 42pt;
     width: 200px;
-    height: 90px;
+    height: 87px;
     padding-top: 7px;
     text-align: center;
     font-weight: bold;
 }
 
 #label {
-    font-size: 20pt;
+    font-size: 22pt;
     text-outline: 1px #000000;
-    padding-left: 34px;
-    font-weight: 500;
+    padding-left: 25px;
+    font-weight: bold;
 }
