@@ -43,6 +43,6 @@ document.addEventListener("DOMContentLoaded", () => {
         number.value = newValue.number;
         single.value = newValue.single;
         plural.value = newValue.plural;
-        visible.checked = newValue.checked;
+        visible.checked = newValue.visible;
     }
 });
