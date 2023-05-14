@@ -36,6 +36,13 @@
         "headerColor": "#00ada1"
       },
       {
+        "name": "lowerthird",
+        "title": "Lower Third",
+        "width": 4,
+        "file": "lowerthird.html",
+        "headerColor": "#00ada1"
+      },
+      {
         "name": "videoplayer",
         "title": "Controls",
         "width": 3,
@@ -69,6 +76,12 @@
       },
       {
         "file": "carousel.html",
+        "width": 1920,
+        "height": 1080,
+        "singleInstance": false
+      },
+      {
+        "file": "lowerthird.html",
         "width": 1920,
         "height": 1080,
         "singleInstance": false
