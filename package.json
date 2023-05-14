@@ -29,6 +29,13 @@
         "headerColor": "#00ada1"
       },
       {
+        "name": "carousel",
+        "title": "Carousel",
+        "width": 2,
+        "file": "carousel.html",
+        "headerColor": "#00ada1"
+      },
+      {
         "name": "videoplayer",
         "title": "Controls",
         "width": 3,
@@ -56,6 +63,12 @@
     "graphics": [
       {
         "file": "counter.html",
+        "width": 1920,
+        "height": 1080,
+        "singleInstance": false
+      },
+      {
+        "file": "carousel.html",
         "width": 1920,
         "height": 1080,
         "singleInstance": false

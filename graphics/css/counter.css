@@ -39,14 +39,14 @@ body, html {
 }
 
 #number {
-    background-image: url('../img/frame.png');
+    background-image: url('../img/frame2.png');
     background-repeat: no-repeat;
     background-size: 200px;
     overflow: hidden;
     font-size: 42pt;
     width: 200px;
-    height: 87px;
-    padding-top: 7px;
+    height: 100px;
+    padding-top: 14px;
     text-align: center;
     font-weight: bold;
 }
